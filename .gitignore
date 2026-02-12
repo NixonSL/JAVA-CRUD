@@ -1,0 +1,23 @@
+# Java
+*.class
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+.settings/
+.classpath
+.project
+
+# VS Code
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# Docker
+.docker/

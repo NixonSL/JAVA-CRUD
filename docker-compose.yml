@@ -1,0 +1,17 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine  # Imagem leve do PostgreSQL
+    container_name: produto-db  # Nome do container
+    restart: always
+    environment:
+      POSTGRES_DB: produto_db      # Nome do banco
+      POSTGRES_USER: projeto_user         # Usuário
+      POSTGRES_PASSWORD: projeto123  # Senha
+    ports:
+      - "5432:5432"  # Porta: host:container
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persistência dos dados
+
+volumes:
+  postgres_data:  # Volume nomeado para não perder dados ao parar o container
