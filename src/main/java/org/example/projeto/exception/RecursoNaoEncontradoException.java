@@ -1,4 +1,4 @@
-﻿package org.example.projeto.exception;
+package org.example.projeto.exception;
 
 public class RecursoNaoEncontradoException extends RuntimeException {
     public RecursoNaoEncontradoException(String mensagem) {

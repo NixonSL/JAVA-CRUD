@@ -21,3 +21,7 @@ logs/
 
 # Docker
 .docker/
+
+# Environment variables
+.env
+*.env
