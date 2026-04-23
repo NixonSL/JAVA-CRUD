@@ -7,9 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.example.projeto.dto.ProdutoRequestDTO;
 import org.example.projeto.dto.ProdutoResponseDTO;
-
-import java.math.BigDecimal; // Para preço com precisão decimal
-import java.time.LocalDateTime; // Para datas de criação/atualização
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -31,45 +30,37 @@ public class Produto {
     @Column(columnDefinition = "TEXT")
     private String descricao;
 
-    // NOVO CAMPO: Preço do produto
     @NotNull(message = "O preço é obrigatório")
     @Positive(message = "O preço deve ser maior que zero")
-    @Column(nullable = false, precision = 10, scale = 2) // 10 dígitos, 2 casas decimais
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal preco;
 
-    // NOVO CAMPO: Quantidade em estoque
     @NotNull(message = "A quantidade é obrigatória")
     @PositiveOrZero(message = "A quantidade não pode ser negativa")
     @Column(nullable = false)
     private Integer quantidade;
 
-    // NOVO CAMPO: Categoria do produto
     @Size(max = 50, message = "A categoria deve ter no máximo 50 caracteres")
     @Column(length = 50)
     private String categoria;
 
-    // NOVO CAMPO: Data de criação (automática)
-    @Column(name = "data_criacao", updatable = false) // updatable=false impede alteração
+    @Column(name = "data_criacao", updatable = false)
     private LocalDateTime dataCriacao;
 
-    // NOVO CAMPO: Data da última atualização (automática)
     @Column(name = "data_atualizacao")
     private LocalDateTime dataAtualizacao;
 
-    // Método executado automaticamente ANTES de salvar pela primeira vez
     @PrePersist
     protected void onCreate() {
         dataCriacao = LocalDateTime.now();
         dataAtualizacao = LocalDateTime.now();
     }
 
-    // Método executado automaticamente ANTES de cada atualização
     @PreUpdate
     protected void onUpdate() {
         dataAtualizacao = LocalDateTime.now();
     }
 
-    // Métodos de conversão (para usar com DTOs)
     public static Produto fromRequest(ProdutoRequestDTO dto) {
         Produto produto = new Produto();
         produto.setNome(dto.getNome());
@@ -81,15 +72,15 @@ public class Produto {
     }
 
     public ProdutoResponseDTO toResponse() {
-        return new ProdutoResponseDTO(
-                this.id,
-                this.nome,
-                this.descricao,
-                this.preco,
-                this.quantidade,
-                this.categoria,
-                this.dataCriacao,
-                this.dataAtualizacao
-        );
+        ProdutoResponseDTO dto = new ProdutoResponseDTO();
+        dto.setId(this.id);
+        dto.setNome(this.nome);
+        dto.setDescricao(this.descricao);
+        dto.setPreco(this.preco);
+        dto.setQuantidade(this.quantidade);
+        dto.setCategoria(this.categoria);
+        dto.setDataCriacao(this.dataCriacao);
+        dto.setDataAtualizacao(this.dataAtualizacao);
+        return dto;
     }
 }

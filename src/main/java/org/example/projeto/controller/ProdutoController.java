@@ -15,8 +15,12 @@ import java.util.stream.Collectors; // NOVO: para converter listas
 
 @RestController
 @RequestMapping("/api/produtos")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
+
 public class ProdutoController {
+
+
+
 
     @Autowired
     private ProdutoService produtoService;
