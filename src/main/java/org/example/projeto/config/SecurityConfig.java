@@ -21,6 +21,9 @@ public class SecurityConfig {
     @Autowired
     private SecurityFilter securityFilter;
 
+    @Autowired
+    private JwtAuthenticationEntryPoint unauthorizedHandler;  // ← NOVO
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -30,14 +33,20 @@ public class SecurityConfig {
                 // 2. Gerenciamento de sessão: STATELESS (não guarda sessão)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 3. Regras de autorização
+                // 3. Tratamento de exceções de autenticação (NOVO)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(unauthorizedHandler)
+                )
+
+                // 4. Regras de autorização
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()      // /auth/register, /auth/login são públicos
                         .requestMatchers("/user/**").authenticated()  // /user/qualquercoisa exige login
-                        .anyRequest().permitAll()                     // por padrão, libera (ajuste conforme necessidade)
+                        .requestMatchers("/api/cart/**").authenticated() // ← CARRINHO requer autenticação
+                        .anyRequest().permitAll()                     // por padrão, libera
                 )
 
-                // 4. Adicionar nosso filtro JWT antes do filtro padrão de usuário/senha
+                // 5. Adicionar nosso filtro JWT antes do filtro padrão de usuário/senha
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
