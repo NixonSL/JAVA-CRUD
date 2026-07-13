@@ -1,168 +1,143 @@
 package org.example.projeto.service;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.example.projeto.client.AuthClient;
+import org.example.projeto.client.UserDTO;
 import org.example.projeto.dto.CartItemDTO;
 import org.example.projeto.dto.CartResponseDTO;
 import org.example.projeto.entity.Cart;
 import org.example.projeto.entity.Produto;
-import org.example.projeto.entity.User;
 import org.example.projeto.repository.CartRepository;
 import org.example.projeto.repository.ProdutoRepository;
-import org.example.projeto.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class CartService {
 
-    @Autowired
-    private CartRepository cartRepository;
+    private final CartRepository cartRepository;
+    private final ProdutoRepository produtoRepository;
+    private final AuthClient authClient;  // ← Feign Client para Auth Service
 
-    @Autowired
-    private ProdutoRepository produtoRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    // 1. Criar carrinho para um novo usuário
     @Transactional
-    public Cart createCartForUser(User user) {
-        // Verificar se usuário já tem carrinho
-        if (cartRepository.existsByUser(user)) {
-            return cartRepository.findByUser(user).get();
+    public Cart getOrCreateCart(String userId) {
+        // Verificar se usuário existe no Auth Service
+        log.info("Verificando existência do usuário: {}", userId);
+        Boolean userExists = authClient.userExists(userId);
+
+        if (!userExists) {
+            throw new RuntimeException("Usuário não encontrado: " + userId);
         }
 
-        // Buscar o usuário completo do banco para garantir que o ID está carregado
-        User managedUser = userRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado com ID: " + user.getId()));
-
-        // Criar novo carrinho com o usuário gerenciado
-        Cart cart = new Cart();
-        cart.setUser(managedUser);
-        cart.setCreatedAt(LocalDateTime.now());
-        cart.setUpdatedAt(LocalDateTime.now());
-        cart.setProdutos(new ArrayList<>());
-
-        return cartRepository.save(cart);
+        // Buscar carrinho existente ou criar novo
+        return cartRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    log.info("Criando novo carrinho para usuário: {}", userId);
+                    Cart newCart = new Cart(userId);
+                    return cartRepository.save(newCart);
+                });
     }
 
-    // 2. Buscar carrinho do usuário (com produtos)
     @Transactional
-    public CartResponseDTO getCartByUser(User user) {
-        // Buscar usuário gerenciado
-        User managedUser = userRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
-        // Buscar carrinho com produtos carregados
-        Cart cart = cartRepository.findCartWithProdutosByUser(managedUser)
-                .orElseGet(() -> createCartForUser(managedUser));
-
-        // Converter para DTO
+    public CartResponseDTO getCartByUserId(String userId) {
+        Cart cart = getOrCreateCart(userId);
         return convertToResponseDTO(cart);
     }
-    // 3. Adicionar produto ao carrinho
+
     @Transactional
-    public CartResponseDTO addProdutoToCart(User user, Long produtoId) {
+    public CartResponseDTO addProdutoToCart(String userId, Long produtoId) {
         // Validar se produto existe
         Produto produto = produtoRepository.findById(produtoId)
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + produtoId));
 
         // Buscar ou criar carrinho
-        Cart cart = cartRepository.findCartWithProdutosByUser(user)
-                .orElseGet(() -> createCartForUser(user));
+        Cart cart = getOrCreateCart(userId);
 
-        // Adicionar produto (evita duplicidade graças ao metodo da entidade)
+        // Adicionar produto
         cart.addProduto(produto);
-
-        // Salvar
         cart = cartRepository.save(cart);
 
-        // Recarregar com produtos para retornar
-        cart = cartRepository.findCartWithProdutosByUser(user).get();
+        // Recarregar com produtos
+        cart = cartRepository.findCartWithProdutosByUserId(userId).orElse(cart);
 
         return convertToResponseDTO(cart);
     }
 
-    // 4. Remover produto do carrinho
     @Transactional
-    public CartResponseDTO removeProdutoFromCart(User user, Long produtoId) {
-        // Buscar carrinho do usuário
-        Cart cart = cartRepository.findCartWithProdutosByUser(user)
+    public CartResponseDTO removeProdutoFromCart(String userId, Long produtoId) {
+        Cart cart = cartRepository.findCartWithProdutosByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Carrinho não encontrado para o usuário"));
 
-        // Buscar produto
         Produto produto = produtoRepository.findById(produtoId)
                 .orElseThrow(() -> new RuntimeException("Produto não encontrado com ID: " + produtoId));
 
-        // Remover produto
         cart.removeProduto(produto);
-
-        // Salvar
         cart = cartRepository.save(cart);
 
         return convertToResponseDTO(cart);
     }
 
-    // 5. Limpar carrinho (remover todos os produtos)
     @Transactional
-    public void clearCart(User user) {
-        Cart cart = cartRepository.findByUser(user)
+    public void clearCart(String userId) {
+        Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Carrinho não encontrado para o usuário"));
 
         cart.clear();
         cartRepository.save(cart);
     }
 
-    // 6. Verificar se produto está no carrinho
-    public boolean isProdutoInCart(User user, Long produtoId) {
-        return cartRepository.existsProdutoInCart(user, produtoId);
+    public boolean isProdutoInCart(String userId, Long produtoId) {
+        return cartRepository.existsProdutoInCart(userId, produtoId);
     }
 
-    // 7. Contar produtos no carrinho
-    public int countProdutosInCart(User user) {
-        return cartRepository.countProdutosInCart(user);
+    public int countProdutosInCart(String userId) {
+        return cartRepository.countProdutosInCart(userId);
     }
 
-    // 8. Converter Cart para CartResponseDTO
     private CartResponseDTO convertToResponseDTO(Cart cart) {
-        // Converter lista de produtos para CartItemDTO
+        // Buscar dados do usuário via Feign
+        UserDTO userInfo = authClient.getUserById(cart.getUserId());
+
         List<CartItemDTO> itens = cart.getProdutos().stream()
                 .map(this::convertToCartItemDTO)
                 .collect(Collectors.toList());
 
-        // Calcular valor total
         BigDecimal valorTotal = itens.stream()
                 .map(CartItemDTO::getPreco)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return new CartResponseDTO(
-                cart.getId(),
-                cart.getUser().getId(),
-                cart.getUser().getEmail(),
-                cart.getUser().getName(),
-                itens,
-                itens.size(),
-                valorTotal,
-                cart.getCreatedAt(),
-                cart.getUpdatedAt()
-        );
+        // Sem builder - usando construtor ou setters
+        CartResponseDTO response = new CartResponseDTO();
+        response.setCartId(cart.getId());
+        response.setUserId(cart.getUserId());
+        response.setUserEmail(userInfo.getEmail());
+        response.setUserName(userInfo.getName());
+        response.setItens(itens);
+        response.setTotalItens(itens.size());
+        response.setValorTotal(valorTotal);
+        response.setCreatedAt(cart.getCreatedAt());
+        response.setUpdatedAt(cart.getUpdatedAt());
+
+        return response;
     }
 
-    // 9. Converter Produto para CartItemDTO
     private CartItemDTO convertToCartItemDTO(Produto produto) {
-        return new CartItemDTO(
-                produto.getId(),
-                produto.getNome(),
-                produto.getDescricao(),
-                produto.getPreco(),
-                produto.getQuantidade(),  // ← campo quantidade do estoque
-                produto.getCategoria()
-        );
+        // Sem builder - usando construtor ou setters
+        CartItemDTO item = new CartItemDTO();
+        item.setProdutoId(produto.getId());
+        item.setNome(produto.getNome());
+        item.setDescricao(produto.getDescricao());
+        item.setPreco(produto.getPreco());
+        item.setQuantidade(produto.getQuantidade());
+        item.setCategoria(produto.getCategoria());
+
+        return item;
     }
 }

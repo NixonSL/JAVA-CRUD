@@ -16,6 +16,4 @@ public class ProdutoResponseDTO {
     private BigDecimal preco;
     private Integer quantidade;
     private String categoria;
-    private LocalDateTime dataCriacao;
-    private LocalDateTime dataAtualizacao;
 }

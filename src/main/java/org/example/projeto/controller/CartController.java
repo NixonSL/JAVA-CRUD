@@ -1,77 +1,66 @@
 package org.example.projeto.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import static org.example.projeto.config.ApiPaths.API_V1;
 import org.example.projeto.dto.CartRequestDTO;
 import org.example.projeto.dto.CartResponseDTO;
-import org.example.projeto.entity.User;
 import org.example.projeto.service.CartService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/cart")
+@RequestMapping(API_V1 + "/cart")
+@RequiredArgsConstructor
 public class CartController {
 
-    @Autowired
-    private CartService cartService;
+    private final CartService cartService;
 
-    // 1. Buscar carrinho do usuário autenticado
-    @GetMapping
-    public ResponseEntity<CartResponseDTO> getCart(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = (User) userDetails;
-        CartResponseDTO cart = cartService.getCartByUser(user);
+    // O userId agora vem do token JWT (via header)
+    // Por enquanto, vamos receber como parâmetro (depois extraímos do token)
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<CartResponseDTO> getCart(@PathVariable String userId) {
+        CartResponseDTO cart = cartService.getCartByUserId(userId);
         return ResponseEntity.ok(cart);
     }
 
-    // 2. Adicionar produto ao carrinho
-    @PostMapping("/add")
+    @PostMapping("/{userId}/add")
     public ResponseEntity<CartResponseDTO> addProdutoToCart(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String userId,
             @Valid @RequestBody CartRequestDTO request) {
 
-        User user = (User) userDetails;
-        CartResponseDTO updatedCart = cartService.addProdutoToCart(user, request.getProdutoId());
+        CartResponseDTO updatedCart = cartService.addProdutoToCart(userId, request.getProdutoId());
         return ResponseEntity.ok(updatedCart);
     }
 
-    // 3. Remover produto do carrinho
-    @DeleteMapping("/remove/{produtoId}")
+    @DeleteMapping("/{userId}/remove/{produtoId}")
     public ResponseEntity<CartResponseDTO> removeProdutoFromCart(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String userId,
             @PathVariable Long produtoId) {
 
-        User user = (User) userDetails;
-        CartResponseDTO updatedCart = cartService.removeProdutoFromCart(user, produtoId);
+        CartResponseDTO updatedCart = cartService.removeProdutoFromCart(userId, produtoId);
         return ResponseEntity.ok(updatedCart);
     }
 
-    // 4. Limpar carrinho (remover todos os produtos)
-    @DeleteMapping("/clear")
-    public ResponseEntity<Void> clearCart(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = (User) userDetails;
-        cartService.clearCart(user);
+    @DeleteMapping("/{userId}/clear")
+    public ResponseEntity<Void> clearCart(@PathVariable String userId) {
+        cartService.clearCart(userId);
         return ResponseEntity.noContent().build();
     }
 
-    // 5. Verificar se produto está no carrinho
-    @GetMapping("/check/{produtoId}")
+    @GetMapping("/{userId}/check/{produtoId}")
     public ResponseEntity<Boolean> isProdutoInCart(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String userId,
             @PathVariable Long produtoId) {
 
-        User user = (User) userDetails;
-        boolean exists = cartService.isProdutoInCart(user, produtoId);
+        boolean exists = cartService.isProdutoInCart(userId, produtoId);
         return ResponseEntity.ok(exists);
     }
 
-    // 6. Contar produtos no carrinho
-    @GetMapping("/count")
-    public ResponseEntity<Integer> countProdutosInCart(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = (User) userDetails;
-        int count = cartService.countProdutosInCart(user);
+    @GetMapping("/{userId}/count")
+    public ResponseEntity<Integer> countProdutosInCart(@PathVariable String userId) {
+        int count = cartService.countProdutosInCart(userId);
         return ResponseEntity.ok(count);
     }
 }

@@ -79,8 +79,6 @@ public class Produto {
         dto.setPreco(this.preco);
         dto.setQuantidade(this.quantidade);
         dto.setCategoria(this.categoria);
-        dto.setDataCriacao(this.dataCriacao);
-        dto.setDataAtualizacao(this.dataAtualizacao);
         return dto;
     }
 }

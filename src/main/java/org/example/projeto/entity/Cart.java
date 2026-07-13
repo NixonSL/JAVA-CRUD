@@ -1,10 +1,21 @@
 package org.example.projeto.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "carts")
 public class Cart {
@@ -13,9 +24,8 @@ public class Cart {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", unique = true, nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private String userId;  // ← Agora é apenas String (ID do usuário no Auth Service)
 
     @ManyToMany
     @JoinTable(
@@ -23,78 +33,32 @@ public class Cart {
             joinColumns = @JoinColumn(name = "cart_id"),
             inverseJoinColumns = @JoinColumn(name = "produto_id")
     )
+    @Builder.Default
     private List<Produto> produtos = new ArrayList<>();
 
-    @Column(name = "created_at")
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Construtores
-    public Cart() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public Cart(User user) {
-        this.user = user;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    // Getters e Setters
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public List<Produto> getProdutos() {
-        return produtos;
-    }
-
-    public void setProdutos(List<Produto> produtos) {
-        this.produtos = produtos;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
+    // Construtor personalizado para criar carrinho com userId
+    public Cart(String userId) {
+        this.userId = userId;
+        this.produtos = new ArrayList<>();
     }
 
     // Métodos utilitários
     public void addProduto(Produto produto) {
         if (!this.produtos.contains(produto)) {
             this.produtos.add(produto);
-            this.updatedAt = LocalDateTime.now();
         }
     }
 
     public void removeProduto(Produto produto) {
         this.produtos.remove(produto);
-        this.updatedAt = LocalDateTime.now();
     }
 
     public boolean hasProduto(Produto produto) {
@@ -103,15 +67,9 @@ public class Cart {
 
     public void clear() {
         this.produtos.clear();
-        this.updatedAt = LocalDateTime.now();
     }
 
     public int getTotalItems() {
         return this.produtos.size();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
     }
 }
